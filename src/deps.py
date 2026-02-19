@@ -33,5 +33,3 @@ def parse_data(data: Dict):
     
     return rp, deps
 
-
-
