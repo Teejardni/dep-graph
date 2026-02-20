@@ -1,3 +1,5 @@
+from metadata import get_package_metadata
+import httpx
 from typing import List
 from typing import Dict
 import tomllib
@@ -16,6 +18,7 @@ def read_pyproject(filepath: Path):
         return e
 
 def resolve_dependency_versions(deps: List[str]):
+    """ Returns a dict of resolved dependencies from a PEP 508 list """
     resolved = {}
     for dep in deps:
         try:
@@ -29,7 +32,7 @@ def resolve_dependency_versions(deps: List[str]):
 
 def parse_data(data: Dict):
     rp = data.get('requires-python')
-    deps = resolve_dependency_versions(data.get('dependencies'))
-    
-    return rp, deps
+    packages = resolve_dependency_versions(data.get('dependencies'))
+
+    return rp, packages
 
