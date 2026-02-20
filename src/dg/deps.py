@@ -6,8 +6,10 @@ from packaging.requirements import Requirement, InvalidRequirement
 
 def read_pyproject(filepath: Path):
     """ Read pyproject to receive deps"""
+    filepath = Path(filepath)
+    pptml = filepath / "pyproject.toml"
     try:
-        with open(f"{filepath}/pyproject.toml", "rb") as f:
+        with pptml.open("rb") as f:
             data = tomllib.load(f).get('project')
             
         return data
@@ -15,12 +17,14 @@ def read_pyproject(filepath: Path):
 
         return e
 
-def resolve_dependency_versions(deps: List[str]):
+def _resolve_dependency_versions(deps: List[str]):
     """ Returns a dict of resolved dependencies from a PEP 508 list """
     resolved = {}
     for dep in deps:
         try:
             req = Requirement(dep)
+            if req.marker and "extra" in str(req.marker):
+                continue
             resolved[req.name.lower()] = str(req.specifier)
         except InvalidRequirement as e:
             print(f"Warning: Could not process requirement '{dep}' : {e}")
@@ -30,7 +34,7 @@ def resolve_dependency_versions(deps: List[str]):
 
 def parse_data(data: Dict):
     rp = data.get('requires-python')
-    packages = resolve_dependency_versions(data.get('dependencies'))
+    packages = _resolve_dependency_versions(data.get('dependencies'))
 
     return rp, packages
 

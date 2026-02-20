@@ -1,11 +1,20 @@
 [project]
 name = "dep-graph"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.0.1"
+description = "A cli-package to view requirements of a project as a DAG"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "click~=8.3",
     "httpx~=0.28",
+    "matplotlib~=3.10",
     "networkx~=3.6",
     "packaging~=26.0",
+    "pydot~=4.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+dg = "dg.main:cli"
