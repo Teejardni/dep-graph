@@ -1,5 +1,3 @@
-from metadata import get_package_metadata
-import httpx
 from typing import List
 from typing import Dict
 import tomllib
