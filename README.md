@@ -1,6 +1,6 @@
 # repaudit
 
-A CLI tool that resolves Python package dependencies by recursively querying PyPI, builds a directed acyclic graph of the full dependency tree, detects cycles, computes a valid install order via topological sort, and visualizes the result.
+A cli-package to audit your repository for dependency deprecations, mismatch, drift and vulnerabilities
 
 ## Future Features
 
