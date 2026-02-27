@@ -8,15 +8,35 @@ from pathlib import Path
 from .deps import read_pyproject, parse_data
 from .dagger import build_dependency_tree
 from .dagger import build_dependency_graph
+from .report import Report
+from typing import List
+
+
+async def _run_audit(path: Path) -> List[Report]:
+    from .audit import Auditor
+    import httpx
+    async with httpx.AsyncClient() as client:
+        auditor = Auditor()
+        return await auditor.run(path, client)
 
 @click.group()
 def cli():
     pass
 
 
-#@cli.command()
-#@cli.argument("audit", default=".", type=click.Path(exists=True))
-
+@cli.command()
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--json", "as_json", is_flag=True)
+@click.option("--graph", is_flag=True, help="Also open dependency graph")
+def audit(path, as_json, graph):
+    """Audit a project's dependencies (primary command)"""
+    import asyncio
+    import sys
+    findings = asyncio.run(_run_audit(Path(path)))
+    has_errors = any(f.severity == 'error' for f in findings)
+    for f in findings:
+        click.echo(str(f))
+    sys.exit(1 if has_errors else 0)
 
 @cli.command()
 @click.argument("path", default=".", type=click.Path(exists=True))

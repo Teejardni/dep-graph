@@ -91,4 +91,7 @@ class PYPIResolver:
         except Exception as e:
 
             return e
-
+    
+    @property
+    def ecosystem(self):
+        return "pypi"
