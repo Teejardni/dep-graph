@@ -68,4 +68,4 @@ def visualize_matplotlib(graph: nx.DiGraph):
 
     ax.set_title("Dependency Graph", color="#ffffff", fontsize=14, pad=20)
     plt.tight_layout()
-    plt.show()
+    plt.save()

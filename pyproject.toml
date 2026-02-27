@@ -1,7 +1,7 @@
 [project]
-name = "dep-graph"
+name = "repaudit"
 version = "0.0.1"
-description = "A cli-package to view requirements of a project as a DAG"
+description = "A cli-package to audit your repository for dependency deprecations, mismatch, drift and vulnerabilities"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -17,4 +17,11 @@ dependencies = [
 where = ["src"]
 
 [project.scripts]
-dg = "dg.main:cli"
+repaudit = "repaudit.main:cli"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
