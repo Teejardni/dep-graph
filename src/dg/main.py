@@ -1,3 +1,4 @@
+from genericpath import exists
 from .viz import visualize_pydot
 from .viz import visualize_matplotlib
 import click
@@ -11,6 +12,11 @@ from .dagger import build_dependency_graph
 @click.group()
 def cli():
     pass
+
+
+#@cli.command()
+#@cli.argument("audit", default=".", type=click.Path(exists=True))
+
 
 @cli.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
@@ -61,6 +67,7 @@ def inspect(package, as_json):
     else:
         
         visualize_pydot(graph)
+
 
 if __name__ == "__main__":
     cli()

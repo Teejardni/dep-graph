@@ -1,4 +1,3 @@
-
 from typing import Literal
 from dataclasses import dataclass
 
@@ -11,3 +10,6 @@ class Report:
     suggested_action: str | None
     project: str
     ecosystem: str
+
+    def __str__(self):
+        return f"[{self.code}] {self.message}"
