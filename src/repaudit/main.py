@@ -10,7 +10,7 @@ from .dagger import build_dependency_tree
 from .dagger import build_dependency_graph
 from .report import Report
 from typing import List
-
+import sys
 
 async def _run_audit(path: Path) -> List[Report]:
     from .audit import Auditor
@@ -19,24 +19,34 @@ async def _run_audit(path: Path) -> List[Report]:
         auditor = Auditor()
         return await auditor.run(path, client)
 
-@click.group()
-def cli():
-    pass
-
-
-@cli.command()
-@click.argument("path", default=".", type=click.Path(exists=True))
+@click.group(invoke_without_command=True)
+@click.argument("path", default=".", type=click.Path(exists=True), required=False)
 @click.option("--json", "as_json", is_flag=True)
-@click.option("--graph", is_flag=True, help="Also open dependency graph")
-def audit(path, as_json, graph):
-    """Audit a project's dependencies (primary command)"""
-    import asyncio
-    import sys
-    findings = asyncio.run(_run_audit(Path(path)))
-    has_errors = any(f.severity == 'error' for f in findings)
-    for f in findings:
-        click.echo(str(f))
-    sys.exit(1 if has_errors else 0)
+@click.option("--graph", is_flag=True)
+@click.pass_context
+def cli(ctx, path, as_json, graph):
+    """Audit a repository's dependencies."""
+    if ctx.invoked_subcommand is None:
+        findings = asyncio.run(_run_audit(Path(path)))
+        has_errors = any(f.severity == 'error' for f in findings)
+        for f in findings:
+            click.echo(str(f))
+        sys.exit(1 if has_errors else 0)
+
+#@click.group(invoke_without_command=True)
+#@click.command()
+#@click.argument("path", default=".", type=click.Path(exists=True))
+#@click.option("--json", "as_json", is_flag=True)
+#@click.option("--graph", is_flag=True, help="Also open dependency graph")
+#def audit(path, as_json, graph):
+#    """Audit a project's dependencies (primary command)"""
+#    import asyncio
+#    import sys
+#    findings = asyncio.run(_run_audit(Path(path)))
+#    has_errors = any(f.severity == 'error' for f in findings)
+#    for f in findings:
+#        click.echo(str(f))
+#    sys.exit(1 if has_errors else 0)
 
 @cli.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
