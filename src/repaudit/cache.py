@@ -3,8 +3,10 @@ import hashlib
 import time
 from pathlib import Path
 from typing import Any
+import os
 
-CACHE_DIR = Path.home() / ".repaudit" / "cache"
+_xdg_cache = os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")
+CACHE_DIR = Path(_xdg_cache) / ".repaudit" / "cache"
 
 DEFAULT_TTL = 60 * 60 * 36
 
