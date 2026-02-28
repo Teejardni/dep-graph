@@ -20,7 +20,7 @@ async def _run_audit(path: Path) -> List[Report]:
         return await auditor.run(path, client)
 
 @click.group(invoke_without_command=True)
-@click.argument("path", default=".", type=click.Path(exists=True), required=False)
+@click.option("--path", "-p", default=".", type=click.Path(exists=True))
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--graph", is_flag=True)
 @click.pass_context
