@@ -5,12 +5,13 @@ import click
 import asyncio
 import httpx
 from pathlib import Path
-from .deps import read_pyproject, parse_data
-from .dagger import build_dependency_tree
+#from .deps import read_pyproject, parse_data
+#from .dagger import build_dependency_tree
 from .dagger import build_dependency_graph
 from .report import Report
 from typing import List
 import sys
+from .audit import RESOLVERS
 
 async def _run_audit(path: Path) -> List[Report]:
     from .audit import Auditor
@@ -20,7 +21,7 @@ async def _run_audit(path: Path) -> List[Report]:
         return await auditor.run(path, client)
 
 @click.group(invoke_without_command=True)
-@click.argument("path", default=".", type=click.Path(exists=True), required=False)
+@click.option("--path", "-p", default=".", type=click.Path(exists=True))
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--graph", is_flag=True)
 @click.pass_context
@@ -56,9 +57,9 @@ def resolve(path, fancy, as_json):
     """Resolve dependencies from a pyproject.toml"""
     async def _run():
         async with httpx.AsyncClient() as client:
-            rproj = read_pyproject(Path(path))
-            rp, packages = parse_data(rproj)
-            deps = await build_dependency_tree(client, packages)
+            resolver = RESOLVERS["pypi"]
+            rp, packages = resolver.parse_manifest(Path(path))
+            deps = await resolver.resolve(client, packages)
             graph, order = build_dependency_graph(deps)
             return deps, graph, order
 
@@ -84,7 +85,9 @@ def inspect(package, as_json):
     """Inspect a single package and its full dependency tree"""
     async def _run():
         async with httpx.AsyncClient() as client:
-            deps = await build_dependency_tree(client, {package: ""})
+            resolver = RESOLVERS["pypi"]
+            deps = await resolver.resolve(client, {package: ""})
+            
             graph, order = build_dependency_graph(deps)
             return deps, graph, order
 
@@ -97,6 +100,24 @@ def inspect(package, as_json):
     else:
         
         visualize_pydot(graph)
+
+
+@cli.command()
+@click.option("--clear", is_flag=True, help="Delete all cached entries")
+@click.option("--stats", "show_stats", is_flag=True, help="Show cache size and entry count")
+def cache(clear, show_stats):
+    """Manage the repaudit cache"""
+    from . import cache as cache_module
+    if clear:
+        deleted = cache_module.clear()
+        click.echo(click.style(f"Cleared {deleted} cached entries", fg="green"))
+    elif show_stats:
+        s = cache_module.stats()
+        click.echo(f"Path:    {s['path']}")
+        click.echo(f"Entries: {s['entries']}")
+        click.echo(f"Size:    {s['size_bytes'] / 1024:.1f} KB")
+    else:
+        click.echo("Use --clear or --stats")
 
 
 if __name__ == "__main__":

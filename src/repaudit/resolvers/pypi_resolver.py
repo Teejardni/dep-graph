@@ -1,11 +1,11 @@
 import httpx
 import asyncio
 import tomllib
-from typing import List, Dict
+from typing import List
 from pathlib import Path
 from packaging.requirements import Requirement, InvalidRequirement
-
-
+from .. import  cache
+from ..parsers.requirements_parser import parse_environment, parse
 
 
 
@@ -30,6 +30,11 @@ class PYPIResolver:
         """Fetches the package metadata from PyPi"""
         url = f"https://pypi.org/pypi/{package}/json" if not version else f"https://pypi.org/pypi/{package}/{version}/json"
         try:
+            cache_key = f"pypi:{package}:{version or 'latest'}"
+            cached = cache.get(cache_key)
+            if cached:
+                return cached
+
             response = await client.get(url)
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
@@ -40,12 +45,15 @@ class PYPIResolver:
             raise ConnectionError(f"Network error fetching '{package}': {e}") from e
 
         info = response.json()["info"]
-        return {
+        result = {
                 "name": info["name"],
                 "version": info["version"],
                 "requires_python": info["requires_python"],
                 "requires_dist": info["requires_dist"] or []
                 }
+
+        cache.set(cache_key, result)
+        return result
     
 
     async def resolve(self, client: httpx.AsyncClient, packages):
@@ -74,23 +82,25 @@ class PYPIResolver:
         return visited
 
 
-    def parse_manifest(self, filepath: Path):
+    def parse_manifest(self, filepath: Path, env: str | None = None):
         """ Read pyproject to receive deps"""
         filepath = Path(filepath)
         pptml = filepath / "pyproject.toml"
-        try:
-            with pptml.open("rb") as f:
-                data = tomllib.load(f).get('project')
-            rp = data.get('requires-python')
-            
-            packages = _resolve_dependency_versions(data.get('dependencies'))
+        if pptml.exists():
+            try:
+                with pptml.open("rb") as f:
+                    data = tomllib.load(f).get('project')
+                rp = data.get('requires-python')
+                packages = _resolve_dependency_versions(data.get('dependencies'))
+                return rp, packages
+            except Exception as e:
+                print(f"Warning: failed to parse pyproject.toml: {e}")
 
-            return rp, packages
-                        
-            
-        except Exception as e:
+        packages, detected_env = parse_environment(filepath, env)
+        if packages:
+            return None, packages
 
-            return e
+        return None, {}
     
     @property
     def ecosystem(self):

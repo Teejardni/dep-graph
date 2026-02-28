@@ -1,35 +1,7 @@
 from typing import Dict
-from .deps import _resolve_dependency_versions
-from .metadata import get_package_metadata
-import httpx
 import networkx as nx
-import asyncio
 
-async def build_dependency_tree(client: httpx.AsyncClient, packages):
-
-    visited = {}
-    queue = list(packages.keys())
-    while queue:
-        results = await asyncio.gather(
-            *[get_package_metadata(client, package) for package in queue],
-            return_exceptions=True
-        )
-        next_queue = []
-        for package, result in zip(queue, results):
-            if isinstance(result, Exception):
-                print(f"Warning: failed to fetch '{package}', skipping: {result}")
-                continue
-            visited[package] = result
-            sub_deps = _resolve_dependency_versions(result["requires_dist"])
-            for sd in sub_deps:
-                if sd not in visited and sd not in next_queue:
-                    next_queue.append(sd)
-        
-        queue = next_queue
-
-    
-    return visited
-
+from .resolvers.pypi_resolver import _resolve_dependency_versions
 def build_dependency_graph(deps: Dict) -> nx.DiGraph:
     graph = nx.DiGraph()
 
