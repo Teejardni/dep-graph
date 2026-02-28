@@ -5,7 +5,7 @@ from typing import List
 from pathlib import Path
 from packaging.requirements import Requirement, InvalidRequirement
 from .. import  cache
-
+from ..parsers.requirements_parser import parse_environment, parse
 
 
 
@@ -82,23 +82,25 @@ class PYPIResolver:
         return visited
 
 
-    def parse_manifest(self, filepath: Path):
+    def parse_manifest(self, filepath: Path, env: str | None = None):
         """ Read pyproject to receive deps"""
         filepath = Path(filepath)
         pptml = filepath / "pyproject.toml"
-        try:
-            with pptml.open("rb") as f:
-                data = tomllib.load(f).get('project')
-            rp = data.get('requires-python')
-            
-            packages = _resolve_dependency_versions(data.get('dependencies'))
+        if pptml.exists():
+            try:
+                with pptml.open("rb") as f:
+                    data = tomllib.load(f).get('project')
+                rp = data.get('requires-python')
+                packages = _resolve_dependency_versions(data.get('dependencies'))
+                return rp, packages
+            except Exception as e:
+                print(f"Warning: failed to parse pyproject.toml: {e}")
 
-            return rp, packages
-                        
-            
-        except Exception as e:
+        packages, detected_env = parse_environment(filepath, env)
+        if packages:
+            return None, packages
 
-            return e
+        return None, {}
     
     @property
     def ecosystem(self):

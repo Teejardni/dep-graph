@@ -5,12 +5,13 @@ import click
 import asyncio
 import httpx
 from pathlib import Path
-from .deps import read_pyproject, parse_data
-from .dagger import build_dependency_tree
+#from .deps import read_pyproject, parse_data
+#from .dagger import build_dependency_tree
 from .dagger import build_dependency_graph
 from .report import Report
 from typing import List
 import sys
+from .audit import RESOLVERS
 
 async def _run_audit(path: Path) -> List[Report]:
     from .audit import Auditor
@@ -56,9 +57,9 @@ def resolve(path, fancy, as_json):
     """Resolve dependencies from a pyproject.toml"""
     async def _run():
         async with httpx.AsyncClient() as client:
-            rproj = read_pyproject(Path(path))
-            rp, packages = parse_data(rproj)
-            deps = await build_dependency_tree(client, packages)
+            resolver = RESOLVERS["pypi"]
+            rp, packages = resolver.parse_manifest(Path(path))
+            deps = await resolver.resolve(client, packages)
             graph, order = build_dependency_graph(deps)
             return deps, graph, order
 
@@ -84,7 +85,9 @@ def inspect(package, as_json):
     """Inspect a single package and its full dependency tree"""
     async def _run():
         async with httpx.AsyncClient() as client:
-            deps = await build_dependency_tree(client, {package: ""})
+            resolver = RESOLVERS["pypi"]
+            deps = await resolver.resolve(client, {package: ""})
+            
             graph, order = build_dependency_graph(deps)
             return deps, graph, order
 
