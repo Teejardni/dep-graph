@@ -99,5 +99,23 @@ def inspect(package, as_json):
         visualize_pydot(graph)
 
 
+@cli.command()
+@click.option("--clear", is_flag=True, help="Delete all cached entries")
+@click.option("--stats", "show_stats", is_flag=True, help="Show cache size and entry count")
+def cache(clear, show_stats):
+    """Manage the repaudit cache"""
+    from . import cache as cache_module
+    if clear:
+        deleted = cache_module.clear()
+        click.echo(click.style(f"Cleared {deleted} cached entries", fg="green"))
+    elif show_stats:
+        s = cache_module.stats()
+        click.echo(f"Path:    {s['path']}")
+        click.echo(f"Entries: {s['entries']}")
+        click.echo(f"Size:    {s['size_bytes'] / 1024:.1f} KB")
+    else:
+        click.echo("Use --clear or --stats")
+
+
 if __name__ == "__main__":
     cli()
