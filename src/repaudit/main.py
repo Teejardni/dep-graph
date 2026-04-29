@@ -1,65 +1,45 @@
-from genericpath import exists
-from .viz import visualize_pydot
-from .viz import visualize_matplotlib
-import click
 import asyncio
-import httpx
-from pathlib import Path
-#from .deps import read_pyproject, parse_data
-#from .dagger import build_dependency_tree
-from .dagger import build_dependency_graph
-from .report import Report
-from typing import List
+import json
 import sys
-from .audit import RESOLVERS
+from pathlib import Path
 
-async def _run_audit(path: Path) -> List[Report]:
-    from .audit import Auditor
-    import httpx
+import click
+import httpx
+
+from .audit import run_audit
+from .dagger import build_dependency_graph
+from .resolvers.pypi_resolver import parse_manifest, resolve as resolve_packages
+from .viz import visualize_matplotlib, visualize_pydot
+
+
+async def _run_audit(path: Path):
     async with httpx.AsyncClient() as client:
-        auditor = Auditor()
-        return await auditor.run(path, client)
+        return await run_audit(path, client)
+
 
 @click.group(invoke_without_command=True)
-@click.option("--path", "-p", default=".", type=click.Path(exists=True))
-@click.option("--json", "as_json", is_flag=True)
-@click.option("--graph", is_flag=True)
+@click.argument("path", default=".", type=click.Path(exists=True))
 @click.pass_context
-def cli(ctx, path, as_json, graph):
+def cli(ctx, path):
     """Audit a repository's dependencies."""
     if ctx.invoked_subcommand is None:
         findings = asyncio.run(_run_audit(Path(path)))
-        has_errors = any(f.severity == 'error' for f in findings)
+        has_errors = any(f.severity == "error" for f in findings)
         for f in findings:
             click.echo(str(f))
         sys.exit(1 if has_errors else 0)
 
-#@click.group(invoke_without_command=True)
-#@click.command()
-#@click.argument("path", default=".", type=click.Path(exists=True))
-#@click.option("--json", "as_json", is_flag=True)
-#@click.option("--graph", is_flag=True, help="Also open dependency graph")
-#def audit(path, as_json, graph):
-#    """Audit a project's dependencies (primary command)"""
-#    import asyncio
-#    import sys
-#    findings = asyncio.run(_run_audit(Path(path)))
-#    has_errors = any(f.severity == 'error' for f in findings)
-#    for f in findings:
-#        click.echo(str(f))
-#    sys.exit(1 if has_errors else 0)
 
 @cli.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
 @click.option("--fancy", "-f", is_flag=True, help="Matplotlib visualisation instead of pydot")
-@click.option("--json", "as_json", is_flag=True, help="Dump raw output as JSON, no visualisation")
+@click.option("--json", "as_json", is_flag=True, help="Dump raw output as JSON")
 def resolve(path, fancy, as_json):
-    """Resolve dependencies from a pyproject.toml"""
+    """Resolve dependencies from a pyproject.toml or requirements.txt"""
     async def _run():
         async with httpx.AsyncClient() as client:
-            resolver = RESOLVERS["pypi"]
-            rp, packages = resolver.parse_manifest(Path(path))
-            deps = await resolver.resolve(client, packages)
+            _, packages = parse_manifest(Path(path))
+            deps = await resolve_packages(client, packages)
             graph, order = build_dependency_graph(deps)
             return deps, graph, order
 
@@ -68,38 +48,30 @@ def resolve(path, fancy, as_json):
         click.echo(click.style("Cycle detected, cannot visualize", fg="red"))
         return
     if as_json:
-        import json
         click.echo(json.dumps(deps, indent=2, default=str))
         return
-
     if fancy:
-        visualize_matplotlib(graph) 
-    
+        visualize_matplotlib(graph)
     else:
         visualize_pydot(graph)
 
+
 @cli.command()
 @click.argument("package")
-@click.option("--json", "as_json", is_flag=True, help="Dump raw output as JSON, no visualisation")
+@click.option("--json", "as_json", is_flag=True, help="Dump raw output as JSON")
 def inspect(package, as_json):
     """Inspect a single package and its full dependency tree"""
     async def _run():
         async with httpx.AsyncClient() as client:
-            resolver = RESOLVERS["pypi"]
-            deps = await resolver.resolve(client, {package: ""})
-            
+            deps = await resolve(client, {package: ""})
             graph, order = build_dependency_graph(deps)
             return deps, graph, order
 
     deps, graph, order = asyncio.run(_run())
-
     if as_json:
-        import json
         click.echo(json.dumps(deps, indent=2, default=str))
         return
-    else:
-        
-        visualize_pydot(graph)
+    visualize_pydot(graph)
 
 
 @cli.command()
